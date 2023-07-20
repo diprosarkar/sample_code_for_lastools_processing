@@ -1,0 +1,32 @@
+# Processing step for the generation of DTM and DSM#
+#Step 1: Considering Lastools is in C:\Lastools
+#Step 2: Considering the point cloud file is in D:\Point_Cloud\Mandsaur.las
+
+# Setting the path to the lastools environment
+set path=c:\LAStools\bin;%PATH%
+
+#Setting the folder#
+cd D:\Point_Cloud\Mandsaur.las
+D:
+
+#indexing the PCs for multicore utility#
+lasindex.exe -i Mandsaur.las
+
+#tiling the PC for 250m 
+mkdir Mandsaur_250m
+lastile -i Mandsaur.las -tile_size 250 -odir Mandsaur_250m -o Mandsaur.las -cpu64 -cores 40
+
+#Classify the PC
+mkdir Mandsaur_tile_classified
+lasground -i Mandsaur_250m\*.las -step 3 -spike 0.1 -odix _s300_sp10 -odir Mandsaur_tile_classified -cpu64 -cores 40
+
+#merging all the tiles with only class 2#
+las2las -cores 40 -drop_withheld -merged -keep_class 2 -i Mandsaur_tile_classified\*.las -o Mandsaur_Ground.las -remove_padding
+
+#creating dem from the merged tiles#
+blast2dem -i Mandsaur_Ground.las -keep_class 2 -step 0.161 -epsg 32644 -o Mandsaur_16cm_UTM44N_DTM.tif
+blast2dem -i Mandsaur.las -step 0.161 -epsg 32644 -o Mandsaur_16cm_UTM44N_DSM.tif
+
+
+# Uss Lasthinning if the point cloud is very dense.
+lasthin -i Mandsaur_Ground.las -step 1 -percentile 50 30 -o Mandsaur_Ground_Thin1m_median.las
